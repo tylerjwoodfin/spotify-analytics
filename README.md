@@ -20,13 +20,14 @@ Checks for duplicate songs, unplayable songs, and songs missing from playlists.
 3. Adjust the code as you see fit. Your musical tastes are your own. My code is specific to my own music setup, which is:
     - Each new song is added to `Tyler Radio`, `Last 25 Added`, and the appropriate `genre playlist`
     - No song should be in multiple `genre playlists`
+    - No song should exist in `Tyler Radio` but not in a `genre playlist`
     - No song should exist in a `genre playlist` but not in `Tyler Radio`
     - No song should exist in `Last 25 Added` but not in `Tyler Radio`
-    - No song should exist in `Tyler Radio` but not in a `genre playlist`
+    - No song should exist in `Removed` and `Tyler Radio` simultaneously.
 
 ## Usage
 ```python3 main.py```
-(Note: this will take a minute. The API limits you to )
+(Note: this will take a minute. Spotipy limits you to 100 songs at a time.)
 
 ## Example File
 ```
@@ -37,4 +38,5 @@ Checks for duplicate songs, unplayable songs, and songs missing from playlists.
 2Aop8CO3DC7K9qyM1WgloX,Pop
 4E8EyyhmbBUCAh9tNIYMv0,R&B
 6hywO4jlkShcGKdTrez9yr,Rock
+3zr0wmZocFR6nD6teH0dlm,Removed
 ```
