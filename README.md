@@ -16,7 +16,7 @@ Checks for duplicate songs, unplayable songs, and songs missing from playlists.
     - The first column is the `playlist ID`. The second column is just a label- make it anything you want. Mine are named after my playlists.
     - Replace my IDs with your Spotify playlist IDs.
     - Find your IDs by going to Spotify, right-clicking on a playlist, then clicking "Share".
-    - e.g. https://open.spotify.com/playlist/**6hywO4jlkShcGKdTrez9yr**
+    - e.g. https://open.spotify.com/playlist/6hywO4jlkShcGKdTrez9yr
 3. Adjust the code as you see fit. Your musical tastes are your own. My code is specific to my own music setup, which is:
     - Each new song is added to `Tyler Radio`, `Last 25 Added`, and the appropriate `genre playlist`
     - No song should be in multiple `genre playlists`
