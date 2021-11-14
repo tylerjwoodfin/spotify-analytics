@@ -44,8 +44,6 @@ def show_tracks(playlist_name, tracks, playlist_index, total_tracks):
 
             if(track['album']['release_date']):
                 songYears.append(int(track['album']['release_date'].split("-")[0]))
-
-
     
     return returnTracks
 
@@ -102,11 +100,9 @@ def checkForAInB(a_index, b_index, tracks, inverse=False):
     for track in tracks[a_index][1]:
         if((not inverse and track not in tracks[b_index][1]) or (inverse and track in tracks[b_index][1])):
             isSuccess = False
-            secureData.log(f"{track} {'' if inverse else 'not '}in {tracks[b_index][0]}", logName="LOG_SPOTIFY")
+            secureData.log(f"Error: {track} {'' if inverse else 'not '}in {tracks[b_index][0]}", logName="LOG_SPOTIFY")
     if(isSuccess):
         secureData.log("Looks good!", logName="LOG_SPOTIFY")
-
-    return isSuccess
 
 def checkForOneMatchInGenrePlaylists():
     secureData.log(f"Checking that every track in {playlists_tracks[0][0]} has exactly one genre playlist", logName="LOG_SPOTIFY")
@@ -118,9 +114,9 @@ def checkForOneMatchInGenrePlaylists():
     for track in playlists_tracks[0][1]:
         instance_count = tracks_in_genre_playlists.count(track)
         if instance_count == 0:
-            secureData.log(f"{track} missing a genre", logName="LOG_SPOTIFY")
+            secureData.log(f"Error: {track} missing a genre", logName="LOG_SPOTIFY")
         elif instance_count > 1:
-            secureData.log(f"{track} found in multiple genres", logName="LOG_SPOTIFY")
+            secureData.log(f"Error: {track} found in multiple genres", logName="LOG_SPOTIFY")
     
     if isSuccess:
         secureData.log("Looks good!", logName="LOG_SPOTIFY")
