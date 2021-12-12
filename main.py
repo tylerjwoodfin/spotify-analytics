@@ -37,13 +37,14 @@ def show_tracks(playlist_name, tracks, playlist_index, total_tracks):
         index+=1
         print(f"{index} of {total_tracks} in {playlist_name}...")
 
-        if track['is_local'] == False:
-            returnTracks.append(track['external_urls']['spotify'])
-        if playlist_index == 0:
-            mainPlaylistCSV += f"{str(index)}::{track['artists'][0]['name']}::{track['name']}::{str(track['album']['release_date'])}::{(track['external_urls']['spotify'] if track['is_local'] == False else '')}\n"
+        if track:
+            if track['is_local'] == False:
+                returnTracks.append(track['external_urls']['spotify'])
+            if playlist_index == 0:
+                mainPlaylistCSV += f"{str(index)}::{track['artists'][0]['name']}::{track['name']}::{str(track['album']['release_date'])}::{(track['external_urls']['spotify'] if track['is_local'] == False else '')}\n"
 
-            if(track['album']['release_date']):
-                songYears.append(int(track['album']['release_date'].split("-")[0]))
+                if(track['album']['release_date']):
+                    songYears.append(int(track['album']['release_date'].split("-")[0]))
     
     return returnTracks
 
