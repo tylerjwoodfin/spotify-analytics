@@ -15,14 +15,14 @@ from statistics import mean
 userDir = pwd.getpwuid( os.getuid() )[ 0 ]
 
 sys.path.insert(0, f'/home/{userDir}/Git/SecureData')
-import secureData
+import secureDataNew as secureData
 
 
 # set environment variables needed by Spotipy
-os.environ['SPOTIPY_CLIENT_ID'] = secureData.variable("SPOTIPY_CLIENT_ID")
-os.environ['SPOTIPY_CLIENT_SECRET'] = secureData.variable("SPOTIPY_CLIENT_SECRET")
+os.environ['SPOTIPY_CLIENT_ID'] = secureData.getItem("spotipy", "client_id")
+os.environ['SPOTIPY_CLIENT_SECRET'] = secureData.getItem("spotipy", "client_secret")
 os.environ['SPOTIPY_REDIRECT_URI'] = 'http://localhost:8888'
-spotipy_username = secureData.variable("SPOTIPY_USERNAME")
+spotipy_username = secureData.getItem("spotipy", "username")
 
 songYears = []
 index = 0
@@ -49,7 +49,7 @@ def show_tracks(playlist_name, tracks, playlist_index, total_tracks):
     return returnTracks
 
 def extract():
-    playlists = secureData.array("SPOTIPY_PLAYLISTS")
+    playlists = secureData.getItem("spotipy", "playlists")
 
     try:
         client_credentials_manager = SpotifyClientCredentials()
@@ -74,7 +74,7 @@ def extract():
         total_tracks = results['tracks']['total']
 
         if(i == 0):
-            secureData.write("SPOTIPY_SONG_COUNT", str(total_tracks))
+            secureData.setItem("spotipy", "total_tracks", total_tracks)
 
         playlist_tracks = []
 
@@ -88,10 +88,10 @@ def extract():
         
         playlists_tracks.append([playlist_name, playlist_tracks])
 
-    secureData.write(f"{str(datetime.date.today())}.csv", mainPlaylistCSV, "/var/www/html/Logs/Songs")
+    secureData.writeFile(content=mainPlaylistCSV, fileName=f"{str(datetime.date.today())}.csv", filePath="/var/www/html/Logs/Songs/")
     secureData.log("Updated Spotify Log")
-    secureData.write("SPOTIPY_AVERAGE_YEAR", str(mean(songYears)))
-    secureData.appendUnique("SPOTIPY_AVERAGE_YEAR_LOG", datetime.datetime.now().strftime('%Y-%m-%d') + "," + str(mean(songYears)))
+    secureData.setItem("spotipy", "average_year", mean(songYears))
+    secureData.log(datetime.datetime.now().strftime('%Y-%m-%d') + "," + str(mean(songYears)), logName="SPOTIPY_AVERAGE_YEAR_LOG")
             
     return playlists_tracks
 
@@ -116,15 +116,17 @@ def checkForOneMatchInGenrePlaylists():
         instance_count = tracks_in_genre_playlists.count(track)
         if instance_count == 0:
             secureData.log(f"Error: {track} missing a genre", logName="LOG_SPOTIFY")
+            isSuccess = False
         elif instance_count > 1:
             secureData.log(f"Error: {track} found in multiple genres", logName="LOG_SPOTIFY")
+            isSuccess = False
     
     if isSuccess:
         secureData.log("Looks good!", logName="LOG_SPOTIFY")
 
 if __name__ == '__main__':
     playlists_tracks = extract()
-    secureData.write("SPOTIPY_PLAYLIST_DATA", str(playlists_tracks))
+    secureData.writeFile(content=str(playlists_tracks), fileName="LOG_SPOTIPY_PLAYLIST_DATA")
 
     # Caution- this code is necessarily fragile and assumes the data in the `SPOTIPY_PLAYLISTS` file
     # matches the example file in README.md.
