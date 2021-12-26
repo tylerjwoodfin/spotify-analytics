@@ -58,42 +58,46 @@ def extract():
         secureData.log(f"Caught Spotify Initialization Error: {str(e)}")
 
     if(not playlists):
+        secureData.log(f"Could not resolve Spotify playlists")
         sys.exit()
 
     # array of playlist track arrays, e.g. playlists_tracks[0] is an array containing every track in playlists[0] ID
     playlists_tracks = []
     
-    for i, playlist in enumerate(playlists):
-        if(not ',' in playlist):
-            continue
+    try:
+        for i, playlist in enumerate(playlists):
+            if(not ',' in playlist):
+                continue
 
-        playlist_id = playlist.split(',')[0]
-        playlist_name = playlist.split(',')[1]
-        results = sp.playlist(playlist_id)
-        tracks = results['tracks']
-        total_tracks = results['tracks']['total']
+            playlist_id = playlist.split(',')[0]
+            playlist_name = playlist.split(',')[1]
+            results = sp.playlist(playlist_id)
+            tracks = results['tracks']
+            total_tracks = results['tracks']['total']
 
-        if(i == 0):
-            secureData.setItem("spotipy", "total_tracks", total_tracks)
+            if(i == 0):
+                secureData.setItem("spotipy", "total_tracks", total_tracks)
 
-        playlist_tracks = []
+            playlist_tracks = []
 
-        # go through each set of songs, 100 at a time (due to Spotipy limits)
-        global index
-        index = 0
-        playlist_tracks += (show_tracks(playlist_name, tracks, i, total_tracks))
-        while tracks['next']:
-            tracks = sp.next(tracks)
+            # go through each set of songs, 100 at a time (due to Spotipy limits)
+            global index
+            index = 0
             playlist_tracks += (show_tracks(playlist_name, tracks, i, total_tracks))
-        
-        playlists_tracks.append([playlist_name, playlist_tracks])
-
-    secureData.writeFile(content=mainPlaylistCSV, fileName=f"{str(datetime.date.today())}.csv", filePath="/var/www/html/Logs/Songs/")
-    secureData.log("Updated Spotify Log")
-    secureData.setItem("spotipy", "average_year", mean(songYears))
-    secureData.log(datetime.datetime.now().strftime('%Y-%m-%d') + "," + str(mean(songYears)), logName="SPOTIPY_AVERAGE_YEAR_LOG")
+            while tracks['next']:
+                tracks = sp.next(tracks)
+                playlist_tracks += (show_tracks(playlist_name, tracks, i, total_tracks))
             
-    return playlists_tracks
+            playlists_tracks.append([playlist_name, playlist_tracks])
+
+            secureData.writeFile(content=mainPlaylistCSV, fileName=f"{str(datetime.date.today())}.csv", filePath="/var/www/html/Logs/Songs/")
+            secureData.log("Updated Spotify Log")
+            secureData.setItem("spotipy", "average_year", mean(songYears))
+            secureData.log(datetime.datetime.now().strftime('%Y-%m-%d') + "," + str(mean(songYears)), logName="SPOTIPY_AVERAGE_YEAR_LOG")
+                    
+            return playlists_tracks
+    except Exception as e:
+        secureData.log(f"Error parsing Spotify tracks: {str(e)}")
 
 def checkForAInB(a_index, b_index, tracks, inverse=False):
     secureData.log(f"Checking that every track in {tracks[a_index][0]} is {'not ' if inverse else ''}in {tracks[b_index][0]}", logName="LOG_SPOTIFY")
