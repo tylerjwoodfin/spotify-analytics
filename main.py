@@ -11,18 +11,15 @@ import sys
 import spotipy
 import pwd
 from statistics import mean
+from securedata import securedata
 
 userDir = pwd.getpwuid( os.getuid() )[ 0 ]
 
-sys.path.insert(0, f'/home/{userDir}/Git/SecureData')
-import secureData
-
-
 # set environment variables needed by Spotipy
-os.environ['SPOTIPY_CLIENT_ID'] = secureData.getItem("spotipy", "client_id")
-os.environ['SPOTIPY_CLIENT_SECRET'] = secureData.getItem("spotipy", "client_secret")
+os.environ['SPOTIPY_CLIENT_ID'] = securedata.getItem("spotipy", "client_id")
+os.environ['SPOTIPY_CLIENT_SECRET'] = securedata.getItem("spotipy", "client_secret")
 os.environ['SPOTIPY_REDIRECT_URI'] = 'http://localhost:8888'
-spotipy_username = secureData.getItem("spotipy", "username")
+spotipy_username = securedata.getItem("spotipy", "username")
 
 songYears = []
 index = 0
@@ -38,7 +35,7 @@ def show_tracks(playlist_name, tracks, playlist_index, total_tracks):
         print(f"{index} of {total_tracks} in {playlist_name}...")
 
         if track:
-            if track['is_local'] == False:
+            if not track['is_local']:
                 returnTracks.append(track['external_urls']['spotify'])
             if playlist_index == 0:
                 mainPlaylistCSV += f"{str(index)}::{track['artists'][0]['name']}::{track['name']}::{str(track['album']['release_date'])}::{(track['external_urls']['spotify'] if track['is_local'] == False else '')}\n"
@@ -49,16 +46,16 @@ def show_tracks(playlist_name, tracks, playlist_index, total_tracks):
     return returnTracks
 
 def extract():
-    playlists = secureData.getItem("spotipy", "playlists")
+    playlists = securedata.getItem("spotipy", "playlists")
 
     try:
         client_credentials_manager = SpotifyClientCredentials()
         sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
     except Exception as e:
-        secureData.log(f"Caught Spotify Initialization Error: {str(e)}")
+        securedata.log(f"Caught Spotify Initialization Error: {str(e)}")
 
-    if(not playlists):
-        secureData.log(f"Could not resolve Spotify playlists")
+    if(not playlists or len(playlists) < 2):
+        securedata.log(f"Could not resolve Spotify playlists")
         sys.exit()
 
     # array of playlist track arrays, e.g. playlists_tracks[0] is an array containing every track in playlists[0] ID
@@ -76,7 +73,7 @@ def extract():
             total_tracks = results['tracks']['total']
 
             if(i == 0):
-                secureData.setItem("spotipy", "total_tracks", total_tracks)
+                securedata.setItem("spotipy", "total_tracks", total_tracks)
 
             playlist_tracks = []
 
@@ -90,27 +87,29 @@ def extract():
             
             playlists_tracks.append([playlist_name, playlist_tracks])
 
-            secureData.writeFile(content=mainPlaylistCSV, fileName=f"{str(datetime.date.today())}.csv", filePath="/var/www/html/Logs/Songs/")
-            secureData.log("Updated Spotify Log")
-            secureData.setItem("spotipy", "average_year", mean(songYears))
-            secureData.log(datetime.datetime.now().strftime('%Y-%m-%d') + "," + str(mean(songYears)), logName="SPOTIPY_AVERAGE_YEAR_LOG")
+        securedata.writeFile(content=mainPlaylistCSV, fileName=f"{str(datetime.date.today())}.csv", filePath="/var/www/html/Logs/Songs/")
+        securedata.log("Updated Spotify Log")
+        securedata.setItem("spotipy", "average_year", mean(songYears))
+        securedata.log(datetime.datetime.now().strftime('%Y-%m-%d') + "," + str(mean(songYears)), logName="SPOTIPY_AVERAGE_YEAR_LOG")
                     
-            return playlists_tracks
+        return playlists_tracks
     except Exception as e:
-        secureData.log(f"Error parsing Spotify tracks: {str(e)}")
+        securedata.log(f"Error parsing Spotify tracks: {str(e)}")
+        sys.exit()
 
 def checkForAInB(a_index, b_index, tracks, inverse=False):
-    secureData.log(f"Checking that every track in {tracks[a_index][0]} is {'not ' if inverse else ''}in {tracks[b_index][0]}", logName="LOG_SPOTIFY")
+
+    securedata.log(f"Checking that every track in {tracks[a_index][0]} is {'not ' if inverse else ''}in {tracks[b_index][0]}", logName="LOG_SPOTIFY")
     isSuccess = True
     for track in tracks[a_index][1]:
         if((not inverse and track not in tracks[b_index][1]) or (inverse and track in tracks[b_index][1])):
             isSuccess = False
-            secureData.log(f"Error: {track} {'' if inverse else 'not '}in {tracks[b_index][0]}", logName="LOG_SPOTIFY")
+            securedata.log(f"Error: {track} {'' if inverse else 'not '}in {tracks[b_index][0]}", logName="LOG_SPOTIFY")
     if(isSuccess):
-        secureData.log("Looks good!", logName="LOG_SPOTIFY")
+        securedata.log("Looks good!", logName="LOG_SPOTIFY")
 
 def checkForOneMatchInGenrePlaylists():
-    secureData.log(f"Checking that every track in {playlists_tracks[0][0]} has exactly one genre playlist", logName="LOG_SPOTIFY")
+    securedata.log(f"Checking that every track in {playlists_tracks[0][0]} has exactly one genre playlist", logName="LOG_SPOTIFY")
     tracks_in_genre_playlists = []
     for item in playlists_tracks[2:7]:
         tracks_in_genre_playlists += item[1]
@@ -119,18 +118,18 @@ def checkForOneMatchInGenrePlaylists():
     for track in playlists_tracks[0][1]:
         instance_count = tracks_in_genre_playlists.count(track)
         if instance_count == 0:
-            secureData.log(f"Error: {track} missing a genre", logName="LOG_SPOTIFY")
+            securedata.log(f"Error: {track} missing a genre", logName="LOG_SPOTIFY")
             isSuccess = False
         elif instance_count > 1:
-            secureData.log(f"Error: {track} found in multiple genres", logName="LOG_SPOTIFY")
+            securedata.log(f"Error: {track} found in multiple genres", logName="LOG_SPOTIFY")
             isSuccess = False
     
     if isSuccess:
-        secureData.log("Looks good!", logName="LOG_SPOTIFY")
+        securedata.log("Looks good!", logName="LOG_SPOTIFY")
 
 if __name__ == '__main__':
     playlists_tracks = extract()
-    secureData.writeFile(content=str(playlists_tracks), fileName="LOG_SPOTIPY_PLAYLIST_DATA")
+    securedata.writeFile(content=str(playlists_tracks), fileName="LOG_SPOTIPY_PLAYLIST_DATA")
 
     # Caution- this code is necessarily fragile and assumes the data in the `SPOTIPY_PLAYLISTS` file
     # matches the example file in README.md.
