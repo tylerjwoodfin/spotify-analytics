@@ -90,7 +90,7 @@ def extract():
         securedata.writeFile(content=mainPlaylistCSV, fileName=f"{str(datetime.date.today())}.csv", filePath="/var/www/html/Logs/Songs/")
         securedata.log("Updated Spotify Log")
         securedata.setItem("spotipy", "average_year", mean(songYears))
-        securedata.log(datetime.datetime.now().strftime('%Y-%m-%d') + "," + str(mean(songYears)), logName="SPOTIPY_AVERAGE_YEAR_LOG")
+        securedata.log(datetime.datetime.now().strftime('%Y-%m-%d') + "," + str(mean(songYears)), logName="SPOTIPY_AVERAGE_YEAR_LOG", filePath=securedata.getItem("path_log"))
                     
         return playlists_tracks
     except Exception as e:
@@ -129,7 +129,7 @@ def checkForOneMatchInGenrePlaylists():
 
 if __name__ == '__main__':
     playlists_tracks = extract()
-    securedata.writeFile(content=str(playlists_tracks), fileName="LOG_SPOTIPY_PLAYLIST_DATA")
+    securedata.writeFile(content=str(playlists_tracks), fileName="LOG_SPOTIPY_PLAYLIST_DATA", filePath=securedata.getItem("path_log"))
 
     # Caution- this code is necessarily fragile and assumes the data in the `SPOTIPY_PLAYLISTS` file
     # matches the example file in README.md.
