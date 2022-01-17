@@ -52,10 +52,10 @@ def extract():
         client_credentials_manager = SpotifyClientCredentials()
         sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
     except Exception as e:
-        securedata.log(f"Caught Spotify Initialization Error: {str(e)}")
+        securedata.log(f"Could not initialize Spotify: {str(e)}", level="error")
 
     if(not playlists or len(playlists) < 2):
-        securedata.log(f"Could not resolve Spotify playlists")
+        securedata.log(f"Could not resolve Spotify playlists", level="error")
         sys.exit()
 
     # array of playlist track arrays, e.g. playlists_tracks[0] is an array containing every track in playlists[0] ID
@@ -94,7 +94,7 @@ def extract():
                     
         return playlists_tracks
     except Exception as e:
-        securedata.log(f"Error parsing Spotify tracks: {str(e)}")
+        securedata.log(f"Error parsing Spotify tracks: {str(e)}", level="error")
         sys.exit()
 
 def checkForAInB(a_index, b_index, tracks, inverse=False):
@@ -104,7 +104,7 @@ def checkForAInB(a_index, b_index, tracks, inverse=False):
     for track in tracks[a_index][1]:
         if((not inverse and track not in tracks[b_index][1]) or (inverse and track in tracks[b_index][1])):
             isSuccess = False
-            securedata.log(f"Error: {track} {'' if inverse else 'not '}in {tracks[b_index][0]}", logName="LOG_SPOTIFY")
+            securedata.log(f"{track} {'' if inverse else 'not '}in {tracks[b_index][0]}", logName="LOG_SPOTIFY", level="error")
     if(isSuccess):
         securedata.log("Looks good!", logName="LOG_SPOTIFY")
 
@@ -118,10 +118,10 @@ def checkForOneMatchInGenrePlaylists():
     for track in playlists_tracks[0][1]:
         instance_count = tracks_in_genre_playlists.count(track)
         if instance_count == 0:
-            securedata.log(f"Error: {track} missing a genre", logName="LOG_SPOTIFY")
+            securedata.log(f"{track} missing a genre", logName="LOG_SPOTIFY", level="error")
             isSuccess = False
         elif instance_count > 1:
-            securedata.log(f"Error: {track} found in multiple genres", logName="LOG_SPOTIFY")
+            securedata.log(f"{track} found in multiple genres", logName="LOG_SPOTIFY", level="error")
             isSuccess = False
     
     if isSuccess:
