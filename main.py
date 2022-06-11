@@ -25,6 +25,7 @@ spotipy_username = securedata.getItem("spotipy", "username")
 songYears = []
 index = 0
 mainPlaylistCSV = ""
+PATH_LOG = securedata.getItem("path", "log")
 
 
 def show_tracks(playlist_name, tracks, playlist_index, total_tracks):
@@ -96,11 +97,11 @@ def extract():
             playlists_tracks.append([playlist_name, playlist_tracks])
 
         securedata.writeFile(
-            content=mainPlaylistCSV, fileName=f"{str(datetime.date.today())}.csv", filePath=f"{securedata.getItem('path_log_backup')}/log/songs/")
+            content=mainPlaylistCSV, fileName=f"{str(datetime.date.today())}.csv", filePath=f"{securedata.getItem('path', 'securedata', 'log-backup')}/log/songs/")
         securedata.log("Updated Spotify Log")
         securedata.setItem("spotipy", "average_year", mean(songYears))
         securedata.log(datetime.datetime.now().strftime('%Y-%m-%d') + "," + str(mean(songYears)),
-                       logName="SPOTIPY_AVERAGE_YEAR_LOG", filePath=securedata.getItem("path_log"))
+                       logName="SPOTIPY_AVERAGE_YEAR_LOG", filePath=PATH_LOG)
 
         return playlists_tracks
     except Exception as e:
@@ -149,7 +150,7 @@ def checkForOneMatchInGenrePlaylists():
 if __name__ == '__main__':
     playlists_tracks = extract()
     securedata.writeFile(content=str(
-        playlists_tracks), fileName="LOG_SPOTIPY_PLAYLIST_DATA", filePath=securedata.getItem("path_log"))
+        playlists_tracks), fileName="LOG_SPOTIPY_PLAYLIST_DATA", filePath=PATH_LOG)
 
     # Caution- this code is necessarily fragile and assumes the data in the `SPOTIPY_PLAYLISTS` file
     # matches the example file in README.md.
