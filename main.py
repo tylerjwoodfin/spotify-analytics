@@ -111,12 +111,15 @@ def extract():
         index = 0
         playlist_tracks += (show_tracks(playlist_name,
                             tracks, i, total_tracks))
-        while tracks['next']:
-            tracks = sp.next(tracks)
-            playlist_tracks += (show_tracks(playlist_name,
-                                tracks, i, total_tracks))
-
-        playlists_tracks.append([playlist_name, playlist_tracks])
+        try:
+            while tracks['next']:
+                tracks = sp.next(tracks)
+                playlist_tracks += (show_tracks(playlist_name,
+                                    tracks, i, total_tracks))
+            playlists_tracks.append([playlist_name, playlist_tracks])
+        except Exception as e:
+            securedata.log(
+                f"Spotipy Error parsing {playlist_name}", level="error")
 
     securedata.writeFile(
         content=mainPlaylistCSV, fileName=f"{str(datetime.date.today())}.csv", filePath=f"{securedata.getItem('path', 'securedata', 'log-backup')}/log/songs/")
