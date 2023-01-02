@@ -11,6 +11,7 @@ import datetime
 import sys
 import pwd
 from statistics import mean
+import traceback
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from securedata import securedata
@@ -133,9 +134,9 @@ def extract():
                 playlist_tracks += (show_tracks_from_playlist(playlist_name,
                                     tracks, index, total_tracks))
             return_playlists_tracks.append([playlist_name, playlist_tracks])
-        except Exception as error:
+        except Exception:
             securedata.log(
-                f"Spotipy Error parsing {playlist_name}: {error}", level="error")
+                f"Spotipy Error parsing {playlist_name}: {traceback.print_exc()}", level="error")
 
     securedata.writeFile(
         content=CSV_MAIN_PLAYLIST, fileName=f"{str(datetime.date.today())}.csv", filePath=f"{securedata.getItem('path', 'securedata', 'log-backup')}/log/songs/")
