@@ -3,14 +3,14 @@ Checks for duplicate songs, unplayable songs, and songs missing from playlists.
 
 ## Dependencies
 - [Spotify API access](https://stevesie.com/docs/pages/spotify-client-id-secret-developer-api)
-- [Secure Data](https://github.com/tylerjwoodfin/securedata)
+- [Secure Data](https://github.com/tylerjwoodfin/cabinet)
 - [Spotipy](https://spotipy.readthedocs.io)
 
 ## Setup
 1. Obtain [Spotify API access](https://stevesie.com/docs/pages/spotify-client-id-secret-developer-api). Make note of the client ID and secret.
-2. Install [Secure Data](https://github.com/tylerjwoodfin/securedata)
+2. Install [Secure Data](https://github.com/tylerjwoodfin/cabinet)
 3. Setup `Spotipy`
-    - In securedata's `settings.json`, add your Spotify data using `Example settings.json` below as a template.
+    - In cabinet's `settings.json`, add your Spotify data using `Example settings.json` below as a template.
     - Find your `playlist IDs` by going to Spotify, right-clicking on a playlist, then clicking "Share".
         - The ID is the last part of the URL, for instance: https://open.spotify.com/playlist/6hywO4jlkShcGKdTrez9yr
     - The first column in `playlists` is the `playlist ID`. The second column is just a label- make it anything you want. Mine are named after my playlists.
