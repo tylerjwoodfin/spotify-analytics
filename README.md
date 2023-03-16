@@ -3,12 +3,12 @@ Checks for duplicate songs, unplayable songs, and songs missing from playlists.
 
 ## Dependencies
 - [Spotify API access](https://stevesie.com/docs/pages/spotify-client-id-secret-developer-api)
-- [Secure Data](https://github.com/tylerjwoodfin/cabinet)
+- [Cabinet](https://github.com/tylerjwoodfin/cabinet)
 - [Spotipy](https://spotipy.readthedocs.io)
 
 ## Setup
 1. Obtain [Spotify API access](https://stevesie.com/docs/pages/spotify-client-id-secret-developer-api). Make note of the client ID and secret.
-2. Install [Secure Data](https://github.com/tylerjwoodfin/cabinet)
+2. Install [Cabinet](https://github.com/tylerjwoodfin/cabinet)
 3. Setup `Spotipy`
     - In cabinet's `settings.json`, add your Spotify data using `Example settings.json` below as a template.
     - Find your `playlist IDs` by going to Spotify, right-clicking on a playlist, then clicking "Share".

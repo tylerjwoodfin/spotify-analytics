@@ -138,7 +138,7 @@ def extract():
             cabinet.log(
                 f"Spotipy Error parsing {playlist_name}: {traceback.print_exc()}", level="error")
 
-    cabinet.writeFile(
+    cabinet.write_file(
         content=CSV_MAIN_PLAYLIST, file_name=f"{str(datetime.date.today())}.csv", file_path=f"{cabinet.get('path', 'cabinet', 'log-backup')}/log/songs/")
     cabinet.log("Updated Spotify Log")
     cabinet.put("spotipy", "average_year", mean(songYears))
@@ -196,7 +196,7 @@ def check_for_one_match_in_playlists():
 
 if __name__ == '__main__':
     playlists_tracks = extract()
-    cabinet.writeFile(content=str(
+    cabinet.write_file(content=str(
         playlists_tracks), file_name="LOG_SPOTIPY_PLAYLIST_DATA", file_path=PATH_LOG)
 
     # Caution- this code is necessarily fragile and assumes the data in the `SPOTIPY_PLAYLISTS` file
