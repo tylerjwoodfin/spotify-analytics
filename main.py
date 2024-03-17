@@ -8,227 +8,191 @@ spotipy-analytics
 
 import os
 import datetime
-import sys
-import pwd
 from statistics import mean
-import traceback
+from typing import Dict, List
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
+from tqdm import tqdm
 from cabinet import Cabinet
 
 cab = Cabinet()
 
-userDir = pwd.getpwuid(os.getuid())[0]
-
-# set environment variables needed by Spotipy
-os.environ["SPOTIPY_CLIENT_ID"] = cab.get("spotipy", "client_id")
-os.environ["SPOTIPY_CLIENT_SECRET"] = cab.get("spotipy", "client_secret")
-os.environ["SPOTIPY_REDIRECT_URI"] = "http://localhost:8888"
+# environment variables needed by Spotipy
+os.environ['SPOTIPY_CLIENT_ID'] = cab.get("spotipy", "client_id")
+os.environ['SPOTIPY_CLIENT_SECRET'] = cab.get(
+    "spotipy", "client_secret")
+os.environ['SPOTIPY_REDIRECT_URI'] = 'http://localhost:8888'
 spotipy_username = cab.get("spotipy", "username")
 
-songYears = []
-INDEX = 0
-CSV_MAIN_PLAYLIST = ""
+csv_main_playlist = []
 PATH_LOG = cab.get("path", "log")
 
-
-def show_tracks_from_playlist(playlist_name, tracks, playlist_index, total_tracks):
+def initialize_spotify_client() -> spotipy.Spotify:
     """
-    iterates through a playlist and appends tracks to CSV_MAIN_PLAYLIST
+    initializes and returns a Spotipy client instance.
     """
-
-    global INDEX, CSV_MAIN_PLAYLIST
-    return_tracks = []
-
-    for i, item in enumerate(tracks["items"]):
-        track = item["track"]
-        INDEX += 1
-        print(f"{INDEX} of {total_tracks} in {playlist_name}...")
-
-        if track:
-            if not track["is_local"]:
-                return_tracks.append(track["external_urls"]["spotify"])
-            if playlist_index == 0:
-                CSV_MAIN_PLAYLIST += f"{str(INDEX)}::{track['artists'][0]['name']}::{track['name']}::{str(track['album']['release_date'])}::{(track['external_urls']['spotify'] if track['is_local'] == False else '')}\n"
-
-                if track["album"]["release_date"]:
-                    songYears.append(int(track["album"]["release_date"].split("-")[0]))
-
-    return return_tracks
-
-
-def get_playlist(client, playlist_id):
-    """
-    returns playlist given a spotipy client and playlist ID
-    """
-
-    return_playlist = ""
-
-    try:
-        return_playlist = client.playlist(playlist_id)
-        return return_playlist
-    except Exception as error:
-        cab.log(f"Error parsing Spotify tracks: {str(error)}")
-        return ""
-
-
-def extract():
-    """
-    returns an array of tracks from all playlists
-    writes playlist from CSV_MAIN_PLAYLIST to file
-    """
-
-    playlists = cab.get("spotipy", "playlists")
 
     try:
         client_credentials_manager = SpotifyClientCredentials()
-        client = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
-    except Exception as error:
-        cab.log(f"Could not initialize Spotify: {str(error)}", level="error")
+        return spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    except Exception as e:
+        cab.log(f"Could not initialize Spotify: {str(e)}", level="error")
+        raise
 
+def get_playlist_tracks(client: spotipy.Spotify, playlist_id: str) -> List[str]:
+    """
+    retrieves tracks from a specified playlist.
+    """
+
+    playlist_tracks = []
+    results = client.playlist_tracks(playlist_id)
+    count = results['total']
+
+    progress_bar = tqdm(total=count, unit='track')
+
+    while results:
+        for item in results['items']:
+            if item['track']:
+                track = item['track']
+                track_info = (
+                    f"{track['artists'][0]['name']}::"
+                    f"{track['name']}::"
+                    f"{track['album']['release_date']}::"
+                    f"{track['external_urls']['spotify'] if not track['is_local'] else ''}"
+                )
+                playlist_tracks.append(track_info)
+                progress_bar.update(1)
+        results = client.next(results)
+
+    progress_bar.close()
+    return playlist_tracks
+
+def extract_playlists_tracks(client: spotipy.Spotify, playlists: List[str]) -> Dict[str, List[str]]:
+    """
+    extracts tracks from all specified playlists.
+    """
+    tracks = {}
+    for playlist in playlists:
+        if ',' not in playlist:
+            continue
+        playlist_id, playlist_name = playlist.split(',', 1)
+        cab.log(f"Getting tracks in {playlist_name}")
+        tracks[playlist_name] = get_playlist_tracks(client, playlist_id)
+    return tracks
+
+def log_and_save(tracks: Dict[str, List[str]]):
+    """
+    Logs all songs to a daily CSV
+    """
+
+    all_tracks = [track for playlist in tracks.values() for track in playlist]
+    # Updated to filter out 'None' or invalid date strings
+    song_years = [
+        int(track.split('::')[-2].split('-')[0])
+        for track in all_tracks
+        if track.split('::')[-2] and track.split('::')[-2] != 'None'
+            and track.split('::')[-2].split('-')[0].isdigit()
+    ]
+
+    content = '\n'.join([f"{playlist}: {', '.join(tracks)}" for playlist, tracks in tracks.items()])
+    file_name = f"{datetime.date.today()}.csv"
+    file_path = f"{cab.get('path', 'cabinet', 'log-backup')}/log/songs/{file_name}"
+    cab.write_file(content=content, file_name=file_name, file_path=file_path)
+
+    cab.log("Updated Spotify Log")
+    average_year = mean(song_years) if song_years else 0
+    cab.put("spotipy", "average_year", str(average_year))
+    cab.log(f"Setting average year to {average_year}")
+    cab.log(f"{datetime.datetime.now().strftime('%Y-%m-%d')},{average_year}",
+            log_name="SPOTIPY_AVERAGE_YEAR_LOG", log_folder_path=cab.get("path", "log"),
+            is_quiet=True)
+
+def extract():
+    """
+    main function to extract and process Spotify playlists.
+    """
+
+    playlists = cab.get("spotipy", "playlists")
     if not playlists or len(playlists) < 2:
         cab.log("Could not resolve Spotify playlists", level="error")
-        sys.exit()
+        return
 
-    # array of playlist track arrays
-    # e.g. playlists_tracks[0] is an array containing every track in playlists[0] ID
-    return_playlists_tracks = []
+    client = initialize_spotify_client()
+    tracks = extract_playlists_tracks(client, playlists)
+    log_and_save(tracks)
 
-    for index, item in enumerate(playlists):
-        if not "," in item:
-            continue
+    return tracks
 
-        playlist_id = item.split(",")[0]
-        playlist_name = item.split(",")[1]
-
-        retries = 0
-        results = ""
-        while retries < 3 and results == "":
-            cab.log(f"Getting Spotify playlist {playlist_id}")
-            results = get_playlist(client, playlist_id)
-            retries += 1
-        if retries == 4:
-            cab.log(
-                f"Error parsing Spotify tracks after 3 retries: {str(error)}",
-                level="error",
-            )
-            sys.exit()
-
-        tracks = results["tracks"]
-        total_tracks = results["tracks"]["total"]
-
-        if index == 0:
-            cab.put("spotipy", "total_tracks", total_tracks)
-
-        playlist_tracks = []
-
-        # go through each set of songs, 100 at a time (due to Spotipy limits)
-        global INDEX
-        INDEX = 0
-        playlist_tracks += show_tracks_from_playlist(
-            playlist_name, tracks, index, total_tracks
-        )
-        try:
-            while tracks["next"]:
-                tracks = client.next(tracks)
-                playlist_tracks += show_tracks_from_playlist(
-                    playlist_name, tracks, index, total_tracks
-                )
-            return_playlists_tracks.append([playlist_name, playlist_tracks])
-        except Exception:
-            cab.log(
-                f"Spotipy Error parsing {playlist_name}: {traceback.print_exc()}",
-                level="error",
-            )
-
-    cab.write_file(
-        content=CSV_MAIN_PLAYLIST,
-        file_name=f"{str(datetime.date.today())}.csv",
-        file_path=f"{cab.get('path', 'cabinet', 'log-backup')}/log/songs/",
-    )
-    cab.log("Updated Spotify Log")
-    cab.put("spotipy", "average_year", str(mean(songYears)))
-    cab.log(
-        datetime.datetime.now().strftime("%Y-%m-%d") + "," + str(mean(songYears)),
-        log_name="SPOTIPY_AVERAGE_YEAR_LOG",
-        file_path=PATH_LOG,
-    )
-
-    return return_playlists_tracks
-
-
-def check_for_a_in_b(a_index, b_index, tracks, inverse=False):
+def check_for_a_in_b(a_tracks, b_tracks, inverse=False, a_name='', b_name=''):
     """
     checks whether the item from Playlist A is in Playlist B
     logs an error or a success message depending on the results and "inverse"
     """
 
     cab.log(
-        f"Checking that every track in {tracks[a_index][0]} is {'not ' if inverse else ''}in {tracks[b_index][0]}",
-        log_name="LOG_SPOTIFY",
-    )
+        f"Checking that every track in {a_name} is {'' if not inverse else 'not '}in {b_name}",
+        log_name="LOG_SPOTIFY")
+
     is_success = True
-    for track in tracks[a_index][1]:
-        if (not inverse and track not in tracks[b_index][1]) or (
-            inverse and track in tracks[b_index][1]
-        ):
+    for track in a_tracks:
+        if (track in b_tracks) == inverse:
             is_success = False
             cab.log(
-                f"{track} {'' if inverse else 'not '}in {tracks[b_index][0]}",
-                log_name="LOG_SPOTIFY",
-                level="error",
-            )
+                f"{track} {'' if inverse else 'not '}in {b_name}",
+                    log_name="LOG_SPOTIFY", level="error")
     if is_success:
         cab.log("Looks good!", log_name="LOG_SPOTIFY")
 
 
-def check_for_one_match_in_playlists():
+def check_for_one_match_in_playlists(tracks_array: List[List[str]], playlist_names: List[str]):
     """
-    checks whether every track is in exactly one genre playlist (hardcoded)
+    checks whether every track is in exactly one genre playlist (hardcoded).
+    genre playlists start from index 2 of tracks_array to account for 'Last 25 Added'
+    at index 1.
     """
 
-    msg = f"Checking that every track in {playlists_tracks[0][0]} has exactly one genre playlist"
-    cab.log(msg, log_name="LOG_SPOTIFY")
+    main_playlist = tracks_array[0]
+    genre_playlists = tracks_array[2:]
 
-    tracks_in_genre_playlists = []
-    for item in playlists_tracks[2:8]:
-        tracks_in_genre_playlists += item[1]
+    track_genre_count = {track: 0 for track in main_playlist}
 
-    is_success = True
-    for track in playlists_tracks[0][1]:
-        instance_count = tracks_in_genre_playlists.count(track)
-        if instance_count == 0:
-            cab.log(f"{track} missing a genre", log_name="LOG_SPOTIFY", level="error")
-            is_success = False
-        elif instance_count > 1:
-            cab.log(
-                f"{track} found in multiple genres",
-                log_name="LOG_SPOTIFY",
-                level="error",
-            )
-            is_success = False
+    cab.log(f"Checking that each track in {playlist_names[0]} is in exactly one genre.")
+    for track in main_playlist:
+        for genre_playlist in genre_playlists:
+            if track in genre_playlist:
+                track_genre_count[track] += 1
 
-    if is_success:
-        cab.log("Looks good!", log_name="LOG_SPOTIFY")
+    issues = []
 
+    for track, count in track_genre_count.items():
+        if count != 1:
+            issues.append(f"Track '{track}' appears in {count} genre playlists.")
+
+    if issues:
+        for issue in issues:
+            cab.log(issue, level="error")
+    else:
+        cab.log("Looks good!")
 
 if __name__ == "__main__":
     playlists_tracks = extract()
-    cab.write_file(
-        content=str(playlists_tracks),
-        file_name="LOG_SPOTIPY_PLAYLIST_DATA",
-        file_path=PATH_LOG,
-    )
+    cab.write_file(content=str(playlists_tracks),
+        file_name="LOG_SPOTIPY_PLAYLIST_DATA", file_path=PATH_LOG)
 
-    # Caution- this code is necessarily fragile and assumes the data in the `SPOTIPY_PLAYLISTS` file
+    # caution- this code is necessarily fragile and assumes the data in the `SPOTIPY_PLAYLISTS` file
     # matches the example file in README.md.
 
-    # 1. Check `Last 25 Added` and songs from each genre playlist are in `Tyler Radio`
-    for i, playlist in enumerate(playlists_tracks[1:8]):
-        check_for_a_in_b(i + 1, 0, playlists_tracks)
+    tracks_list = list(playlists_tracks.values())
+    tracks_names_list = list(playlists_tracks.keys())
 
-    # 2. Check that any song from `Removed` is not in `Tyler Radio`
-    check_for_a_in_b(8, 0, playlists_tracks, True)
+    # 1. check `Last 25 Added` and songs from each genre playlist are in `Tyler Radio`
+    for i, _ in enumerate(tracks_list[1:8]):
+        check_for_a_in_b(tracks_list[i+1], tracks_list[0],
+            False, tracks_names_list[i+1], tracks_names_list[0])
 
-    # 3. Check that songs from `Tyler Radio` have exactly one genre playlist
-    check_for_one_match_in_playlists()
+    # 2. check that any song from `Removed` is not in `Tyler Radio`
+    check_for_a_in_b(tracks_list[8], tracks_list[0],
+        True, tracks_names_list[8], tracks_names_list[0])
+
+    # 3. check that songs from `Tyler Radio` have exactly one genre playlist
+    check_for_one_match_in_playlists(tracks_list, tracks_names_list[0:7])
