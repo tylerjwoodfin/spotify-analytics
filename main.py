@@ -174,7 +174,7 @@ def check_for_one_match_in_playlists(tracks_array: List[List[str]], playlist_nam
     else:
         cab.log("Looks good!")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     playlists_tracks = extract()
     cab.write_file(content=str(playlists_tracks),
         file_name="LOG_SPOTIPY_PLAYLIST_DATA", file_path=PATH_LOG)
