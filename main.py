@@ -102,6 +102,7 @@ def log_and_save(tracks: Dict[str, List[str]]):
     cab.log("Updated Spotify Log")
     average_year = mean(song_years) if song_years else 0
     cab.put("spotipy", "average_year", str(average_year))
+    cab.put("spotipy", "total_tracks", len(tracks['Tyler Radio']))
     cab.log(f"Setting average year to {average_year}")
     cab.log(f"{datetime.datetime.now().strftime('%Y-%m-%d')},{average_year}",
             log_name="SPOTIPY_AVERAGE_YEAR_LOG", log_folder_path=cab.get("path", "log"),
