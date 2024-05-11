@@ -8,6 +8,7 @@ spotipy-analytics
 
 import os
 import datetime
+import sys
 from statistics import mean
 from typing import Dict, List
 import spotipy
@@ -18,14 +19,27 @@ from cabinet import Cabinet
 cab = Cabinet()
 
 # environment variables needed by Spotipy
-os.environ['SPOTIPY_CLIENT_ID'] = cab.get("spotipy", "client_id")
-os.environ['SPOTIPY_CLIENT_SECRET'] = cab.get(
-    "spotipy", "client_secret")
+
+spotipy_env = cab.get("spotipy")
+required_keys = ['client_id', 'client_secret', 'username']
+
+if not spotipy_env:
+    cab.log("Could not determine Spotipy env.")
+    sys.exit()
+
+# Check for the presence of each required attribute
+for key in required_keys:
+    if not spotipy_env.get(key):
+        cab.log(f"Could not determine Spotipy {key}.")
+        sys.exit()
+
+os.environ['SPOTIPY_CLIENT_ID'] = spotipy_env["client_id"]
+os.environ['SPOTIPY_CLIENT_SECRET'] = spotipy_env["client_secret"]
 os.environ['SPOTIPY_REDIRECT_URI'] = 'http://localhost:8888'
 spotipy_username = cab.get("spotipy", "username")
 
 csv_main_playlist = []
-PATH_LOG = cab.get("path", "log")
+PATH_LOG = cab.get("path", "log") or "~/.cabinet/log"
 
 def initialize_spotify_client() -> spotipy.Spotify:
     """
@@ -46,6 +60,10 @@ def get_playlist_tracks(client: spotipy.Spotify, playlist_id: str) -> List[str]:
 
     playlist_tracks = []
     results = client.playlist_tracks(playlist_id)
+
+    if not results:
+        cab.log("Could not determine playlist tracks", level="error")
+        sys.exit()
     count = results['total']
 
     progress_bar = tqdm(total=count, unit='track')
@@ -71,21 +89,21 @@ def extract_playlists_tracks(client: spotipy.Spotify, playlists: List[str]) -> D
     """
     extracts tracks from all specified playlists.
     """
-    tracks = {}
-    for playlist in playlists:
-        if ',' not in playlist:
+    extracted_tracks = {}
+    for plist in playlists:
+        if ',' not in plist:
             continue
-        playlist_id, playlist_name = playlist.split(',', 1)
+        playlist_id, playlist_name = plist.split(',', 1)
         cab.log(f"Getting tracks in {playlist_name}")
-        tracks[playlist_name] = get_playlist_tracks(client, playlist_id)
-    return tracks
+        extracted_tracks[playlist_name] = get_playlist_tracks(client, playlist_id)
+    return extracted_tracks
 
-def log_and_save(tracks: Dict[str, List[str]]):
+def log_and_save(tracks_to_save: Dict[str, List[str]]):
     """
     Logs all songs to a daily CSV
     """
 
-    all_tracks = [track for playlist in tracks.values() for track in playlist]
+    all_tracks = [track for playlist in tracks_to_save.values() for track in playlist]
     # Updated to filter out 'None' or invalid date strings
     song_years = [
         int(track.split('::')[-2].split('-')[0])
@@ -94,15 +112,18 @@ def log_and_save(tracks: Dict[str, List[str]]):
             and track.split('::')[-2].split('-')[0].isdigit()
     ]
 
-    content = '\n'.join([f"{playlist}: {', '.join(tracks)}" for playlist, tracks in tracks.items()])
+    content = '\n'.join(
+        [f"{playlist}: {', '.join(tracks)}" for playlist, tracks in tracks_to_save.items()])
     file_name = f"{datetime.date.today()}.csv"
     file_path = f"{cab.get('path', 'cabinet', 'log-backup')}/log/songs/{file_name}"
-    cab.write_file(content=content, file_name=file_name, file_path=file_path)
+    cab.write_file(content=content, file_name=file_name, path_file=file_path)
 
     cab.log("Updated Spotify Log")
     average_year = mean(song_years) if song_years else 0
     cab.put("spotipy", "average_year", str(average_year))
-    cab.put("spotipy", "total_tracks", len(tracks['Tyler Radio']))
+
+    if tracks_to_save['Tyler Radio']:
+        cab.put("spotipy", "total_tracks", len(tracks_to_save['Tyler Radio']))
     cab.log(f"Setting average year to {average_year}")
     cab.log(f"{datetime.datetime.now().strftime('%Y-%m-%d')},{average_year}",
             log_name="SPOTIPY_AVERAGE_YEAR_LOG", log_folder_path=cab.get("path", "log"),
@@ -119,10 +140,10 @@ def extract():
         return
 
     client = initialize_spotify_client()
-    tracks = extract_playlists_tracks(client, playlists)
-    log_and_save(tracks)
+    extracted_tracks = extract_playlists_tracks(client, playlists)
+    log_and_save(extracted_tracks)
 
-    return tracks
+    return extracted_tracks
 
 def check_for_a_in_b(a_tracks, b_tracks, inverse=False, a_name='', b_name=''):
     """
@@ -177,8 +198,15 @@ def check_for_one_match_in_playlists(tracks_array: List[List[str]], playlist_nam
 
 if __name__ == "__main__":
     playlists_tracks = extract()
-    cab.write_file(content=str(playlists_tracks),
-        file_name="LOG_SPOTIPY_PLAYLIST_DATA", file_path=PATH_LOG)
+
+    if not playlists_tracks:
+        cab.log("Spotipy Unable to Extract Tracks", level="error")
+        sys.exit()
+
+    for playlist, tracks in playlists_tracks.items():
+        if len(tracks) > 0:
+            cab.write_file(content=str(playlists_tracks),
+                file_name="LOG_SPOTIPY_PLAYLIST_DATA", path_file=PATH_LOG)
 
     # caution- this code is necessarily fragile and assumes the data in the `SPOTIPY_PLAYLISTS` file
     # matches the example file in README.md.
